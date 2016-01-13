@@ -48,5 +48,24 @@ class PitchHandlingTest(unittest.TestCase):
         self.assertEqual(11111111, result.record.timestamp)
         self.assertEqual(self.prev_record.amount - 1, result.record.amount)
         
+    def testCanComplelyCancelAnOpenOrder(self):
+        # len  8          1   12             6     
+        msg = '11111111' 'X' '000000000001' '000010'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertTrue(result.success)
+        self.assertEqual(self.order_id, result.record.order_id)
+        self.assertEqual(11111111, result.record.timestamp)
+        self.assertEqual(0, result.record.amount)
+        
+    def testCanotCancelMoreThanTheOpenOrderHas(self):
+        # len  8          1   12             6     
+        msg = '11111111' 'X' '000000000001' '000011'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertFalse(result.success)
+        self.assertEqual(self.order_id, result.order_id)
+        self.assertEqual('Trying to cancel 11 shares when only got 10',
+                         result.message.split(':')[0])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -84,28 +84,29 @@ def handleAdd(prev_record, timestamp, order_id, line):
     return Success(new_record, ticker, 0)
     
 
-def _handleOrderDecrease(prev_record, timestamp, order_id, line, is_sale):
+def _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute):
     # both handleCancel and handleExecute essentially do the same; factored it out.
+    action = 'execute' if is_execute else 'cancel'
     if not prev_record:
-        return Failure(order_id, timestamp, 'Cannot execute order, it was never added')
+        return Failure(order_id, timestamp, 'Cannot %s order, it was never added' % action)
     amount = int(line[21:27])
     if amount > prev_record.amount:
-        return Failure(order_id, timestamp, 'Trying to execute %d shares when only got %d' % (
-            amount, prev_record.amount
+        return Failure(order_id, timestamp, 'Trying to %s %d shares when only got %d' % (
+            action, amount, prev_record.amount
         ))
     new_record = prev_record.updated(timestamp, prev_record.amount - amount)
     # If we had more variants of sale value calculation, we'd pass a function to calculate it.
-    sale_value = amount * prev_record.price if is_sale else 0
+    sale_value = amount * prev_record.price if is_execute else 0
     return Success(new_record, prev_record.ticker, sale_value)
 
 
 def handleCancel(prev_record, timestamp, order_id, line):
     # Canceling always result in zero sales.
-    return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_sale=False)
+    return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute=False)
 
 
 def handleExecute(prev_record, timestamp, order_id, line):
-    return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_sale=True)
+    return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute=True)
 
 
 def handleTrade(prev_record, timestamp, order_id, line):
