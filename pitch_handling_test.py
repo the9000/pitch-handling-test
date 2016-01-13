@@ -9,7 +9,7 @@ import pitch_handling as H
 class PitchHandlingTest(unittest.TestCase):
 
     def setUp(self):
-        self.order_id = 123
+        self.order_id = 1  # easy in base 36
         self.prev_timestamp = 45678
         self.ticker = 'XYZ'
         self.prev_record = H.OrderStateRecord(
@@ -31,5 +31,22 @@ class PitchHandlingTest(unittest.TestCase):
         self.assertEqual(0, result.value)
 
 
+    def testCannotAddIfPrevRecordExists(self):
+        # len  8          1   12             1   6        6       10           1
+        msg = '11111111' 'A' '000000000001' 'S' '000001' 'XYZxyz' '0000000005' 'Y'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertFalse(result.success)
+        self.assertEqual(self.order_id, result.order_id)
+        self.assertEqual('Duplicate Add record', result.message.split(':')[0])
+
+    def testCanPartlyCancelAnOpenOrder(self):
+        # len  8          1   12             6     
+        msg = '11111111' 'X' '000000000001' '000001'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertTrue(result.success)
+        self.assertEqual(self.order_id, result.record.order_id)
+        self.assertEqual(11111111, result.record.timestamp)
+        self.assertEqual(self.prev_record.amount - 1, result.record.amount)
+        
 if __name__ == '__main__':
     unittest.main()
