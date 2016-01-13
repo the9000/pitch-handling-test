@@ -47,6 +47,7 @@ class PitchHandlingTest(unittest.TestCase):
         self.assertEqual(self.order_id, result.record.order_id)
         self.assertEqual(11111111, result.record.timestamp)
         self.assertEqual(self.prev_record.amount - 1, result.record.amount)
+        self.assertEqual(0, result.value)
         
     def testCanComplelyCancelAnOpenOrder(self):
         # len  8          1   12             6     
@@ -56,16 +57,38 @@ class PitchHandlingTest(unittest.TestCase):
         self.assertEqual(self.order_id, result.record.order_id)
         self.assertEqual(11111111, result.record.timestamp)
         self.assertEqual(0, result.record.amount)
+        self.assertEqual(0, result.value)
         
-    def testCanotCancelMoreThanTheOpenOrderHas(self):
+    def testCannotCancelMoreThanTheOpenOrderHas(self):
         # len  8          1   12             6     
         msg = '11111111' 'X' '000000000001' '000011'
         result = H.handleMessage(self.orders_state, msg)
         self.assertFalse(result.success)
         self.assertEqual(self.order_id, result.order_id)
+        # Built-in unittestslack a nice assertStartsWith() 
         self.assertEqual('Trying to cancel 11 shares when only got 10',
                          result.message.split(':')[0])
 
+    def testCannotCancelIfOrderIsNotOpen(self):
+        # len  8          1   12             6     
+        msg = '11111111' 'X' '000000000002' '000011'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertFalse(result.success)
+        self.assertEqual(2, result.order_id)
+        self.assertEqual('Cannot cancel',
+                         result.message.split('order')[0].strip())
+
+    # We can add all similar tests for execution; we just add one that puts it apart.
+        
+    def testCanPartlyExecuteAnOpenOrder(self):
+        # len  8          1   12             6        12
+        msg = '11111111' 'E' '000000000001' '000002' '0123456789ab'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertTrue(result.success)
+        self.assertEqual(self.order_id, result.record.order_id)
+        self.assertEqual(11111111, result.record.timestamp)
+        self.assertEqual(self.prev_record.amount - 2, result.record.amount)
+        self.assertEqual(self.prev_record.price * 2, result.value)
 
 if __name__ == '__main__':
     unittest.main()
