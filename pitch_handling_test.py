@@ -90,5 +90,24 @@ class PitchHandlingTest(unittest.TestCase):
         self.assertEqual(self.prev_record.amount - 2, result.record.amount)
         self.assertEqual(self.prev_record.price * 2, result.value)
 
+    def testCannotHnadleMessageFromPast(self):
+        # len  8          1   12             6        12
+        msg = '00000011' 'E' '000000000001' '000002' '0123456789ab'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertFalse(result.success)
+        self.assertEqual(self.order_id, result.order_id)
+        self.assertEqual('Event \'E\' from past; already seen %d' % self.prev_timestamp,
+                         result.message)
+
+    def testCannotHnadleUnknownMessage(self):
+        # len  8          1   12             6        12
+        msg = '00000011' '#' '000000000003' '000002' '0123456789ab'
+        result = H.handleMessage(self.orders_state, msg)
+        self.assertFalse(result.success)
+        self.assertEqual(3, result.order_id)
+        self.assertEqual('Unknown message type %r' % '#',
+                         result.message)
+
+        
 if __name__ == '__main__':
     unittest.main()

@@ -145,5 +145,5 @@ def handleMessage(orders, message):
     
     handler = handler_by_message_type.get(msg_type)
     if not handler:
-        return Failure(oredr_id, timestamp, 'Unknown message type %r' % msg_type)
+        return Failure(order_id, timestamp, 'Unknown message type %r' % msg_type)
     return handler(prev_record, timestamp, order_id, message)
