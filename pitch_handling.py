@@ -136,7 +136,7 @@ def handleMessage(orders, message):
     """
     timestamp = int(message[0:8])
     msg_type = message[8]
-    order_id = int(order_36, 36)
+    order_id = int(message[9:21], 36)
     prev_record = orders.get(order_id)
     if prev_record and prev_record.timestamp > timestamp:
         return Failure(order_id, timestamp, 'Event %r from past; already seen %d' % (
