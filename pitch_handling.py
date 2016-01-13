@@ -34,7 +34,7 @@ class Success(namedtuple('Success', ['record', 'ticker', 'value'])):
     def success(self):
         return True
 
-        
+
 class Failure(namedtuple('Failure', ['order_id', 'timestamp', 'message'])):
     """Bad outcome.
     .order_id = id of the order for which a failure occurred.
@@ -59,7 +59,7 @@ def to36(n):
         if rem <= 9:
             digit = str(rem)
         else:
-            digit = chr(rem - 10 + 65) # ord('A') = 65, unless we're running on EBCDIC. 
+            digit = chr(rem - 10 + 65) # ord('A') = 65, unless we're running on EBCDIC.
         result.append(digit)
     if not result:
         return '0'
@@ -72,8 +72,8 @@ def to36(n):
 # on an ill-formed message. A production-quality code would include more robust paersing
 # that would not crash the entire pipeline due to an incorrect message,
 
-    
-def handleAdd(prev_record, timestamp, order_id, line):
+
+def _handleAdd(prev_record, timestamp, order_id, line):
     if prev_record:
         # Do not try to update the order, what if the price is different?
         return Failure(order_id, timestamp, 'Duplicate Add record')
@@ -82,7 +82,7 @@ def handleAdd(prev_record, timestamp, order_id, line):
     price = int(line[34:44])
     new_record = OrderStateRecord(order_id, timestamp, ticker, amount, price)
     return Success(new_record, ticker, 0)
-    
+
 
 def _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute):
     # both handleCancel and handleExecute essentially do the same; factored it out.
@@ -100,29 +100,29 @@ def _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute):
     return Success(new_record, prev_record.ticker, sale_value)
 
 
-def handleCancel(prev_record, timestamp, order_id, line):
+def _handleCancel(prev_record, timestamp, order_id, line):
     # Canceling always result in zero sales.
     return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute=False)
 
 
-def handleExecute(prev_record, timestamp, order_id, line):
+def _handleExecute(prev_record, timestamp, order_id, line):
     return _handleOrderDecrease(prev_record, timestamp, order_id, line, is_execute=True)
 
 
-def handleTrade(prev_record, timestamp, order_id, line):
+def _handleTrade(prev_record, timestamp, order_id, line):
     # We can assume that prev_record is empty.
     # We just trust the trade info and don't track any changes.
     amount = int(line[22:28])
     ticker = line[28:34]
     price = int(line[34:44])
     return Success(None, ticker, price * amount)
-    
-        
+
+
 handler_by_message_type = {
-    'A': handleAdd,
-    'E': handleExecute,
-    'P': handleTrade,
-    'X': handleCancel,
+    'A': _handleAdd,
+    'E': _handleExecute,
+    'P': _handleTrade,
+    'X': _handleCancel,
 }
 
 
@@ -142,7 +142,7 @@ def handleMessage(orders, message):
     if prev_record and prev_record.timestamp > timestamp:
         return Failure(order_id, timestamp, 'Event %r from past; already seen %d' % (
             msg_type, prev_record.timestamp))
-    
+
     handler = handler_by_message_type.get(msg_type)
     if not handler:
         return Failure(order_id, timestamp, 'Unknown message type %r' % msg_type)
